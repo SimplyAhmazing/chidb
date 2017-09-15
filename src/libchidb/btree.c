@@ -121,11 +121,14 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     chidb_Pager_setPageSize(*pager, pageSize);
 
     /* Validate header */
+    if (strcmp("SQLite format 3", header) != 0) {
+        return CHIDB_ECORRUPTHEADER;
+    }
+
     uint32_t fileChangeCounter = betole(&header[0x18]);
     uint32_t schemaVersion = betole(&header[0x28]);
     uint32_t pageCacheSize = betole(&header[0x30]);
     uint32_t userCookie = betole(&header[0x3C]);
-
     if ( 
         fileChangeCounter != 0      || // Unused
         betole(&header[0x20]) != 0  || betole(&header[0x24]) != 0 ||
