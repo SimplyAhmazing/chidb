@@ -282,3 +282,11 @@ int chidb_tokenize(char *str, char ***tokens)
     return ntokens;
 }
 
+void flog(const char *msg) {
+    FILE *logger;
+    logger = fopen("log.txt", "w+");
+    fprintf(logger, msg);
+    fprintf(logger, "\n");
+    fflush(logger);
+}
+

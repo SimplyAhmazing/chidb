@@ -68,5 +68,7 @@ void chidb_BTree_stringPrinter(BTreeNode *btn, BTreeCell *btc);
 
 FILE *copy(const char *from, const char *to);
 
+void flog(const char *msg);
+
 
 #endif /*UTIL_H_*/

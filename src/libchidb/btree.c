@@ -55,6 +55,13 @@
 #include "util.h"
 
 
+/* Convert big endian to little endian
+*
+*/
+inline uint32_t betole(const uint8_t *data) {
+    return data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]
+}
+
 /* Open a B-Tree file
  *
  * This function opens a database file and verifies that the file
@@ -81,7 +88,7 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
 {
     /* Your code goes here */
     FILE *logger;
-    logger = fopen("/Users/ahmedabdalla/Code/courses/chidb/log.txt", "w+");
+    logger = fopen("log.txt", "w+");
     fprintf(logger, "Beginning chidb_Btree_open\n");
     fflush(logger);
 
@@ -107,8 +114,6 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
         fflush(logger);
         return rc; // CHIDB_ECORRUPTHEADER;
     }
-    fprintf(logger, "got here..\n");
-    fflush(logger);
 
     uint16_t pageSize = header[16]*256 + header[17];
     fprintf(logger, "Page size is %d\n", pageSize);
