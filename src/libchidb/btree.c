@@ -110,7 +110,7 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     fprintf(logger, "2\n");
     fflush(logger);
     if ((rc = chidb_Pager_readHeader(*pager, header)) != CHIDB_OK) {
-        fprintf(logger, "read header failed with error code%d\n", rc);
+        fprintf(logger, "read header failed with error code: %d\n", rc);
         fflush(logger);
         return rc; // CHIDB_ECORRUPTHEADER;
     }
@@ -158,7 +158,8 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
 int chidb_Btree_close(BTree *bt)
 {
     /* Your code goes here */
-
+    chidb_Pager_close(bt->pager);
+    free(bt);
     return CHIDB_OK;
 }
 
@@ -187,6 +188,11 @@ int chidb_Btree_close(BTree *bt)
 int chidb_Btree_getNodeByPage(BTree *bt, npage_t npage, BTreeNode **btn)
 {
     /* Your code goes here */
+
+    *btn = malloc(sizeof(BTreeNode));
+    MemPage *page;
+    page = &((*btn)->page);
+    chidb_Pager_readPage(bt->pager, npage, &page);
 
     return CHIDB_OK;
 }
