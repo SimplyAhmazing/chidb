@@ -59,7 +59,7 @@
 *
 */
 inline uint32_t betole(const uint8_t *data) {
-    return data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]
+    return data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
 }
 
 /* Open a B-Tree file
@@ -118,8 +118,24 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     uint16_t pageSize = header[16]*256 + header[17];
     fprintf(logger, "Page size is %d\n", pageSize);
     fflush(logger);
-
     chidb_Pager_setPageSize(*pager, pageSize);
+
+    /* Validate header */
+    uint32_t fileChangeCounter = betole(&header[0x18]);
+    uint32_t schemaVersion = betole(&header[0x28]);
+    uint32_t pageCacheSize = betole(&header[0x30]);
+    uint32_t userCookie = betole(&header[0x3C]);
+
+    if ( 
+        fileChangeCounter != 0      || // Unused
+        betole(&header[0x20]) != 0  || betole(&header[0x24]) != 0 ||
+        schemaVersion != 0          || betole(&header[0x2C]) != 1 ||
+        pageCacheSize != 20000      || betole(&header[0x34]) != 0 ||
+        betole(&header[0x38]) != 1  || userCookie != 0 ||
+        betole(&header[0x40]) != 0
+    ) {
+        return CHIDB_ECORRUPTHEADER;
+    }
     return CHIDB_OK;
 }
 
