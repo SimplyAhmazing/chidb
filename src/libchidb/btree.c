@@ -80,7 +80,41 @@
 int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
 {
     /* Your code goes here */
+    FILE *logger;
+    logger = fopen("/Users/ahmedabdalla/Code/courses/chidb/log.txt", "w+");
+    fprintf(logger, "Beginning chidb_Btree_open\n");
+    fflush(logger);
 
+    int rc;
+    Pager **pager;
+    uint8_t header[100];
+
+    *bt = malloc(sizeof(BTree));
+    pager = &((*bt)->pager);
+
+    fprintf(logger, "1\n");
+    fflush(logger);
+    if ((rc = chidb_Pager_open(pager, filename)) != CHIDB_OK) {
+        fprintf(logger, "Failed to open filename %s\n", filename);
+        fflush(logger);
+        return rc;
+    }
+
+    fprintf(logger, "2\n");
+    fflush(logger);
+    if ((rc = chidb_Pager_readHeader(*pager, header)) != CHIDB_OK) {
+        fprintf(logger, "read header failed with error code%d\n", rc);
+        fflush(logger);
+        return rc; // CHIDB_ECORRUPTHEADER;
+    }
+    fprintf(logger, "got here..\n");
+    fflush(logger);
+
+    uint16_t pageSize = header[16]*256 + header[17];
+    fprintf(logger, "Page size is %d\n", pageSize);
+    fflush(logger);
+
+    chidb_Pager_setPageSize(*pager, pageSize);
     return CHIDB_OK;
 }
 
