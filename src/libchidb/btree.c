@@ -102,16 +102,14 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     fprintf(logger, "1\n");
     fflush(logger);
     if ((rc = chidb_Pager_open(pager, filename)) != CHIDB_OK) {
-        fprintf(logger, "Failed to open filename %s\n", filename);
-        fflush(logger);
+        chilog(ERROR, "Failed to open filename %s\n", filename);
         return rc;
     }
 
     fprintf(logger, "2\n");
     fflush(logger);
     if ((rc = chidb_Pager_readHeader(*pager, header)) != CHIDB_OK) {
-        fprintf(logger, "read header failed with error code: %d\n", rc);
-        fflush(logger);
+        chilog(ERROR, "read header failed with error code: %d\n", rc);
         return rc; // CHIDB_ECORRUPTHEADER;
     }
 
@@ -120,7 +118,12 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     fflush(logger);
     chidb_Pager_setPageSize(*pager, pageSize);
 
-    /* Validate header */
+    /* Validate header
+    *  The following are values in the header which are all constant in chidb,
+    *  but which might change in sqlite.  chidb is a subset of sqlite, so we're
+    *  not going as far as to fully implement this header format and instead
+    *  will just validate it with constant initial values.
+    */
     if (strcmp("SQLite format 3", header) != 0) {
         return CHIDB_ECORRUPTHEADER;
     }
@@ -158,7 +161,10 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
 int chidb_Btree_close(BTree *bt)
 {
     /* Your code goes here */
-    chidb_Pager_close(bt->pager);
+    int rc;
+    if ( (rc = chidb_Pager_close(bt->pager)) != CHIDB_OK ) {
+        return rc;
+    }
     free(bt);
     return CHIDB_OK;
 }
@@ -188,11 +194,39 @@ int chidb_Btree_close(BTree *bt)
 int chidb_Btree_getNodeByPage(BTree *bt, npage_t npage, BTreeNode **btn)
 {
     /* Your code goes here */
+    int rc;
 
     *btn = malloc(sizeof(BTreeNode));
-    MemPage *page;
-    page = &((*btn)->page);
-    chidb_Pager_readPage(bt->pager, npage, &page);
+    if (btn == NULL) {
+        return CHIDB_ENOMEM;
+    }
+
+    MemPage **page = &((*btn)->page);
+    rc = chidb_Pager_readPage(bt->pager, npage, page);
+    if (rc != CHIDB_OK) {
+        chilog(ERROR, "couldn't read page: %d", rc);
+        return rc;
+    }
+
+    // Parse the node from the page in memory
+    // Special case first page, which contains the 100 byte db file header
+    uint8_t *const data = (*page)->data + (npage == 1 ? 100 : 0);
+    BTreeNode* node = *btn;
+    node->type = data[0];
+    node->free_offset = get2byte(data+1);
+    node->n_cells = get2byte(data+3);
+    node->cells_offset = get2byte(data+5);
+
+    
+    int is_internal_node = node->type == PGTYPE_TABLE_INTERNAL || node->type == PGTYPE_INDEX_INTERNAL;
+    if (is_internal_node) {
+        node->right_page = get4byte(data+8);
+    }
+
+    // using (*page)->data here because cells_offset is relative to the start
+    // of the page, even when we're in the special case first page that
+    // contains the file header
+    node->celloffset_array = data + (is_internal_node ? 12 : 8);
 
     return CHIDB_OK;
 }
