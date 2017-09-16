@@ -248,7 +248,13 @@ int chidb_Btree_getNodeByPage(BTree *bt, npage_t npage, BTreeNode **btn)
 int chidb_Btree_freeMemNode(BTree *bt, BTreeNode *btn)
 {
     /* Your code goes here */
+    int rc;
+    rc = chidb_Pager_releaseMemPage(bt->pager, btn->page);
+    if (rc != CHIDB_OK) {
+        return rc;
+    }
 
+    free(btn);
     return CHIDB_OK;
 }
 
