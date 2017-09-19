@@ -99,18 +99,16 @@ int chidb_Btree_open(const char *filename, chidb *db, BTree **bt)
     *bt = malloc(sizeof(BTree));
     pager = &((*bt)->pager);
 
-    fprintf(logger, "1\n");
-    fflush(logger);
     if ((rc = chidb_Pager_open(pager, filename)) != CHIDB_OK) {
         chilog(ERROR, "Failed to open filename %s\n", filename);
         return rc;
     }
 
-    fprintf(logger, "2\n");
-    fflush(logger);
-    if ((rc = chidb_Pager_readHeader(*pager, header)) != CHIDB_OK) {
-        chilog(ERROR, "read header failed with error code: %d\n", rc);
-        return rc; // CHIDB_ECORRUPTHEADER;
+    if ((rc = chidb_Pager_readHeader(*pager, header)) == CHIDB_NOHEADER) {
+        // Write file header to first 100 bytes
+        // Create new node in page 1
+        // Write node
+        return rc;
     }
 
     uint16_t pageSize = header[16]*256 + header[17];
@@ -278,6 +276,14 @@ int chidb_Btree_freeMemNode(BTree *bt, BTreeNode *btn)
 int chidb_Btree_newNode(BTree *bt, npage_t *npage, uint8_t type)
 {
     /* Your code goes here */
+    int rc;
+    // This function never fails lol
+    chidb_Pager_allocatePage(bt->pager, npage);
+
+    rc = chidb_Btree_initEmptyNode(bt, *npage, type);
+    if (rc != CHIDB_OK) {
+        return rc;
+    }
 
     return CHIDB_OK;
 }
@@ -303,6 +309,31 @@ int chidb_Btree_newNode(BTree *bt, npage_t *npage, uint8_t type)
 int chidb_Btree_initEmptyNode(BTree *bt, npage_t npage, uint8_t type)
 {
     /* Your code goes here */
+    MemPage* page;
+    rc = chidb_Pager_readPage(bt->pager, *npage, &page);
+    if (rc != CHIDB_OK) {
+        // could only be CHIDB_ENOMEM here
+        return rc;
+    }
+
+    // fill in the page
+    uint8_t* data = page->data;
+    if (npage == 1) {
+        // write the header
+    }
+
+    // TODO: Fill this out with good initial value
+    BTreeNode btn;
+    btn.page = page;
+    btn.type = type;
+    btn.free_offset
+    btn.n_cells
+    btn.cells_offset
+    btn.right_page
+    btn.celloffset_array
+    
+    // write it back to disk
+    rc = chidb_Btree_writeNode(bt, &btn);
 
     return CHIDB_OK;
 }
