@@ -310,30 +310,32 @@ int chidb_Btree_initEmptyNode(BTree *bt, npage_t npage, uint8_t type)
 {
     /* Your code goes here */
     MemPage* page;
-    rc = chidb_Pager_readPage(bt->pager, *npage, &page);
+    int rc = chidb_Pager_readPage(bt->pager, npage, &page);
     if (rc != CHIDB_OK) {
         // could only be CHIDB_ENOMEM here
         return rc;
     }
 
-    // fill in the page
-    uint8_t* data = page->data;
-    if (npage == 1) {
-        // write the header
-    }
-
-    // TODO: Fill this out with good initial value
+    int is_internal_node = type == PGTYPE_TABLE_INTERNAL || type == PGTYPE_INDEX_INTERNAL;
     BTreeNode btn;
     btn.page = page;
     btn.type = type;
-    btn.free_offset
-    btn.n_cells
-    btn.cells_offset
-    btn.right_page
-    btn.celloffset_array
+    // free offset starts right after the header, since there are
+    // no cells yet
+    btn.free_offset = is_internal_node ? 12 : 8;
+    btn.n_cells = 0;
+    // cells_offset points to the region where cells are stored,
+    // which grows up from the bottom of the page. When we have
+    // no cells, it should be set to page size.
+    btn.cells_offset = bt->pager->page_size;
+    btn.right_page = 0;
+    btn.celloffset_array = page->data + (is_internal_node ? 12 : 8);
     
     // write it back to disk
     rc = chidb_Btree_writeNode(bt, &btn);
+    if (rc != CHIDB_OK) {
+        return rc;
+    }
 
     return CHIDB_OK;
 }
@@ -359,7 +361,27 @@ int chidb_Btree_initEmptyNode(BTree *bt, npage_t npage, uint8_t type)
  */
 int chidb_Btree_writeNode(BTree *bt, BTreeNode *btn)
 {
-    /* Your code goes here */
+    MemPage* page = btn->page;
+    uint8_t* data = page->data;
+    
+    // First page is special because it holds file header
+    if (page->npage == 1) {
+        data += 100;
+    }
+
+    int is_internal_node = btn->type == PGTYPE_TABLE_INTERNAL || btn->type == PGTYPE_INDEX_INTERNAL;
+    data[0] = btn->type;
+    put2byte(&data[1], btn->free_offset);
+    put2byte(&data[3], btn->n_cells);
+    put2byte(&data[5], btn->cells_offset);
+    if (is_internal_node) {
+        put4byte(&data[8], btn->right_page);
+    }
+
+    int rc = chidb_Pager_writePage(bt->pager, page);
+    if (rc != CHIDB_OK) {
+        return rc;
+    }
 
     return CHIDB_OK;
 }
